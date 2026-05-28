@@ -123,7 +123,7 @@ const handleMobileView = (componentName) => {
 }
 
 let router = createRouter({
-  history: createWebHistory('/crm'),
+  history: createWebHistory((window._subpath_prefix || (window.location.pathname.startsWith('/erp') ? '/erp' : '')) + '/crm'),
   routes,
 })
 
