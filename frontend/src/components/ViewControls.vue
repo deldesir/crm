@@ -24,7 +24,7 @@
         <div class="flex gap-2">
           <Button
             :tooltip="__('Refresh')"
-            :icon="RefreshIcon"
+            icon="lucide-refresh-ccw"
             :loading="isLoading"
             @click="reload()"
           />
@@ -157,7 +157,7 @@
       <div class="flex items-center gap-2">
         <Button
           :tooltip="__('Refresh')"
-          :icon="RefreshIcon"
+          icon="lucide-refresh-ccw"
           :loading="isLoading"
           @click="reload()"
         />
@@ -304,7 +304,6 @@ import ListIcon from '@/components/Icons/ListIcon.vue'
 import KanbanIcon from '@/components/Icons/KanbanIcon.vue'
 import GroupByIcon from '@/components/Icons/GroupByIcon.vue'
 import QuickFilterField from '@/components/QuickFilterField.vue'
-import RefreshIcon from '@/components/Icons/RefreshIcon.vue'
 import EditIcon from '@/components/Icons/EditIcon.vue'
 import DuplicateIcon from '@/components/Icons/DuplicateIcon.vue'
 import CheckIcon from '@/components/Icons/CheckIcon.vue'
@@ -324,6 +323,7 @@ import { getSettings } from '@/stores/settings'
 import { globalStore } from '@/stores/global'
 import { viewsStore } from '@/stores/views'
 import { usersStore } from '@/stores/users'
+import { organizationsStore } from '@/stores/organizations'
 import { getMeta } from '@/stores/meta'
 import { isEmoji } from '@/utils'
 import {
@@ -335,9 +335,16 @@ import {
   FeatherIcon,
   usePageMeta,
 } from 'frappe-ui'
-import { computed, ref, onMounted, watch, h, markRaw } from 'vue'
+import {
+  computed,
+  ref,
+  onMounted,
+  onBeforeUnmount,
+  watch,
+  h,
+  markRaw,
+} from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { useDebounceFn } from '@vueuse/core'
 import { isMobileView } from '@/composables/settings'
 import Draggable from 'vuedraggable'
 import _ from 'lodash'
@@ -357,9 +364,10 @@ const props = defineProps({
 })
 
 const { brand } = getSettings()
-const { $dialog } = globalStore()
+const { $dialog, $socket } = globalStore()
 const { reload: reloadView, getDefaultView, getView } = viewsStore()
 const { isManager } = usersStore()
+const { organizations } = organizationsStore()
 
 const list = defineModel({ type: Object, default: () => ({}) })
 const loadMore = defineModel('loadMore', { type: Boolean })
@@ -516,6 +524,7 @@ list.value = createResource({
   url: 'crm.api.doc.get_data',
   params: getParams(),
   cache: [props.doctype, route.query.view, route.params.viewType],
+  auto: true,
   onSuccess(data) {
     let cv = getView(route.query.view, route.params.viewType, props.doctype)
     let params = list.value.params ? list.value.params : getParams()
@@ -541,7 +550,27 @@ list.value = createResource({
   },
 })
 
-onMounted(() => useDebounceFn(reload, 100)())
+// Refresh the list when a Domain Enrichment enrichment finishes for this
+// doctype, so newly-filled fields (logo, etc.) show without a manual reload.
+function onEnrichmentDone(data) {
+  if (data?.status !== 'completed') return
+  if (data.reference_doctype === props.doctype) reload()
+  // The Deals list logo comes from the cached organizations store
+  // (getOrganization → organization_logo), not the deal row. Refresh that store so a
+  // newly enriched org's logo appears without a hard refresh; `rows` is a
+  // computed reading the store, so it re-renders reactively.
+  if (props.doctype === 'CRM Deal') {
+    organizations.reload()
+  }
+}
+
+onMounted(() => {
+  $socket?.on('domain_enrichment_progress', onEnrichmentDone)
+})
+
+onBeforeUnmount(() => {
+  $socket?.off('domain_enrichment_progress', onEnrichmentDone)
+})
 
 const isLoading = computed(() => list.value?.loading)
 
@@ -641,7 +670,10 @@ const viewsDropdownOptions = computed(() => {
     {
       group: __('Standard Views'),
       hideLabel: true,
-      items: standardViews,
+      items: standardViews.map((item) => ({
+        ...item,
+        selected: item.name === currentView.value.name,
+      })),
     },
   ]
 
@@ -650,6 +682,7 @@ const viewsDropdownOptions = computed(() => {
       view.label = __(view.label)
       view.type = view.type || 'list'
       view.icon = getIcon(view.icon, view.type)
+      view.selected = view.name === currentView.value.name
       view.filters =
         typeof view.filters == 'string'
           ? JSON.parse(view.filters)
@@ -925,7 +958,19 @@ function updateColumns(obj) {
 
   if (!route.query.view) {
     createOrUpdateStandardView()
+  } else if (!view.value.public) {
+    persistCustomView()
   }
+}
+
+function persistCustomView() {
+  view.value.doctype = props.doctype
+  call('crm.fcrm.doctype.crm_view_settings.crm_view_settings.update', {
+    view: view.value,
+  }).then(() => {
+    reloadView()
+    viewUpdated.value = false
+  })
 }
 
 function updateKanbanSettings(data) {
