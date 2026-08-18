@@ -50,18 +50,18 @@
           <div class="grid grid-cols-2 gap-4">
             <FormControl
               v-model="syncSource.type"
-              type="autocomplete"
+              type="combobox"
               required="true"
               :options="supportedSourceTypes"
               :label="__('Source Type')"
               :placeholder="__('Select Source Type')"
             >
-              <template v-if="syncSource.type" #prefix>
-                <component :is="syncSource.type.icon" class="mr-2 size-4" />
+              <template v-if="selectedSourceType" #prefix>
+                <component :is="selectedSourceType.icon" class="mr-2 size-4" />
               </template>
 
-              <template #item-prefix="{ option }">
-                <component :is="option.icon" class="size-4" />
+              <template #item-prefix="{ item }">
+                <component :is="item.icon" class="size-4" />
               </template>
             </FormControl>
 
@@ -176,7 +176,6 @@ import {
   Tabs,
 } from 'frappe-ui'
 
-import { useTelemetry } from 'frappe-ui/frappe'
 import { getMeta } from '@/stores/meta'
 import Link from '@/components/Controls/Link.vue'
 import Grid from '@/components/Controls/Grid.vue'
@@ -241,7 +240,6 @@ const fieldsMap = computed(() => {
 })
 
 const sources = inject('sources')
-const { capture } = useTelemetry()
 const syncSource = ref({
   name: '',
   type: '',
@@ -254,6 +252,10 @@ const syncSource = ref({
 })
 
 const isLocal = ref(true)
+
+const selectedSourceType = computed(() =>
+  supportedSourceTypes.find((type) => type.value === syncSource.value.type),
+)
 
 function updateSource(data) {
   sources.setValue.submit(
@@ -270,7 +272,7 @@ function updateSource(data) {
         mappingFormDocResource.value.document.save.submit()
       },
       onError(e) {
-        toast.error(e.messages[0] || __('Error updating Lead Sync Source'))
+        toast.error(e.messages[0] || __('Error updating lead sync source'))
       },
     },
   )
@@ -280,19 +282,16 @@ function createSource() {
   sources.insert.submit(
     {
       ...syncSource.value,
-      type: syncSource.value.type.value,
+      type: syncSource.value.type,
     },
     {
       onSuccess: (newDoc) => {
-        capture('lead_sync_source_created', {
-          source_type: syncSource.value.type.value,
-        })
-        toast.success(__('Lead Sync Source created successfully'))
+        toast.success(__('Lead sync source created successfully'))
         isLocal.value = false
         docResource.value = getSourceDocResource(newDoc.name)
       },
       onError(error) {
-        toast.error(error.messages[0] || __('Error creating Lead Sync Source'))
+        toast.error(error.messages[0] || __('Error creating lead sync source'))
       },
     },
   )
@@ -304,7 +303,7 @@ function createOrUpdateSource() {
   } else {
     updateSource({
       ...syncSource.value,
-      type: syncSource.value.type.value,
+      type: syncSource.value.type,
     })
   }
 }
@@ -330,9 +329,7 @@ watch(
     if (newDoc) {
       Object.assign(syncSource.value, {
         ...newDoc,
-        type:
-          supportedSourceTypes.find((type) => type.value === newDoc.type) ||
-          newDoc.type,
+        type: newDoc.type,
       })
 
       mappingFormDocResource.value = useDocument(

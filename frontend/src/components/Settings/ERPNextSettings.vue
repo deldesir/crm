@@ -156,8 +156,9 @@
                   </div>
                 </div>
                 <div class="w-48">
-                  <Autocomplete
+                  <Combobox
                     v-if="!erpnextCRMSettingsResource.isERPNextInstalled.data"
+                    trigger="button"
                     :model-value="
                       erpnextCRMSettingsResource.doc.erpnext_company
                     "
@@ -172,8 +173,7 @@
                     required
                     class="pb-0.5"
                     @update:modelValue="
-                      erpnextCRMSettingsResource.doc.erpnext_company =
-                        $event?.value
+                      erpnextCRMSettingsResource.doc.erpnext_company = $event
                     "
                   >
                     <template #footer>
@@ -192,7 +192,7 @@
                         "
                       />
                     </template>
-                  </Autocomplete>
+                  </Combobox>
                   <Link
                     v-else
                     v-model="erpnextCRMSettingsResource.doc.erpnext_company"
@@ -227,10 +227,6 @@
                   <Switch
                     v-model="erpnextCRMSettingsResource.doc.sync_products"
                     size="sm"
-                    @update:modelValue="
-                      (v) =>
-                        capture('erpnext_product_sync_toggled', { enabled: v })
-                    "
                   />
                 </div>
               </div>
@@ -442,7 +438,7 @@
               <span class="text-center text-p-base text-ink-gray-6">
                 {{
                   __(
-                    'Enable the integration to create quotations and auto create customers in ERPNext.',
+                    'Enable the integration to create quotations and more in ERPNext.',
                   )
                 }}
               </span>
@@ -463,6 +459,7 @@
 <script setup>
 import {
   Button,
+  Combobox,
   createDocumentResource,
   createResource,
   FormControl,
@@ -632,8 +629,6 @@ const isDirty = computed(() => {
 const saveSettings = async () => {
   if (!validateData() || !validateSiteConnection()) return
 
-  const wasEnabled = !!erpnextCRMSettingsResource.originalDoc?.enabled
-
   updateFields(
     {
       enabled: erpnextCRMSettingsResource.doc.enabled,
@@ -650,9 +645,6 @@ const saveSettings = async () => {
     },
     {
       onSuccess: async () => {
-        if (erpnextCRMSettingsResource.doc.enabled && !wasEnabled) {
-          capture('erpnext_integration_enabled')
-        }
         if (!erpnextCRMSettingsResource.isERPNextInstalled.data) {
           await erpnextCRMSettingsResource.getExternalCompanies.submit()
         }
@@ -774,7 +766,7 @@ const validateSiteConnection = () => {
     try {
       new URL(erpnext_site_url)
     } catch {
-      error = __('Invalid Site URL')
+      error = __('Invalid site URL')
     }
   }
 
