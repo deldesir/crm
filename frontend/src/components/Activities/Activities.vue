@@ -18,9 +18,6 @@
       <LoadingIndicator class="h-6 w-6" />
       <span>{{ __('Loading...') }}</span>
     </div>
-    <div v-else-if="title == 'Events'" class="h-full activity">
-      <EventArea :doctype="doctype" :docname="docname" />
-    </div>
     <div
       v-else-if="
         activities?.length ||
@@ -456,13 +453,11 @@ import UserAvatar from '@/components/UserAvatar.vue'
 import ActivityIcon from '@/components/Icons/ActivityIcon.vue'
 import EmailIcon from '@/components/Icons/EmailIcon.vue'
 import DetailsIcon from '@/components/Icons/DetailsIcon.vue'
-import CalendarIcon from '@/components/Icons/CalendarIcon.vue'
 import PhoneIcon from '@/components/Icons/PhoneIcon.vue'
 import NoteIcon from '@/components/Icons/NoteIcon.vue'
 import TaskIcon from '@/components/Icons/TaskIcon.vue'
 import AttachmentIcon from '@/components/Icons/AttachmentIcon.vue'
 import WhatsAppIcon from '@/components/Icons/WhatsAppIcon.vue'
-import EventArea from '@/components/Activities/EventArea.vue'
 import WhatsAppArea from '@/components/Activities/WhatsAppArea.vue'
 import WhatsAppBox from '@/components/Activities/WhatsAppBox.vue'
 import LoadingIndicator from '@/components/Icons/LoadingIndicator.vue'
@@ -604,7 +599,10 @@ onMounted(() => {
 })
 
 function handleDocinfoUpdate({ doc, key }) {
-  if (key !== 'comments') return
+  // 'comments' covers comment activity; 'communications' covers new/updated
+  // emails (e.g. a reply arriving, or a read-receipt coming in) so the
+  // timeline reflects them live instead of only after a manual reload.
+  if (key !== 'comments' && key !== 'communications') return
   if (doc.reference_doctype !== props.doctype) return
   if (doc.reference_name !== props.docname) return
 
@@ -733,49 +731,57 @@ const top = computed(() => {
 })
 
 const emptyText = computed(() => {
-  let text = 'No Activities Found'
+  let text = __('No Activities Found')
   if (title.value == 'Emails') {
-    text = 'No Emails Found'
+    text = __('No Emails Found')
   } else if (title.value == 'Comments') {
-    text = 'No Comments Found'
+    text = __('No Comments Found')
   } else if (title.value == 'Data') {
-    text = 'No Data Fields Added Yet'
+    text = __('No Data Fields Added Yet')
   } else if (title.value == 'Calls') {
-    text = 'No Call History'
+    text = __('No Call History')
   } else if (title.value == 'Notes') {
-    text = 'No Notes Found'
+    text = __('No Notes Found')
   } else if (title.value == 'Tasks') {
-    text = 'No Tasks Found'
+    text = __('No Tasks Found')
   } else if (title.value == 'Attachments') {
-    text = 'No Attachments Found'
+    text = __('No Attachments Found')
   } else if (title.value == 'WhatsApp') {
-    text = 'No WhatsApp Messages Found'
+    text = __('No WhatsApp Messages Found')
   }
   return text
 })
 
 const emptyTextDescription = computed(() => {
-  let description =
-    'There are no activities to display here. Go ahead and make some changes.'
+  let description = __(
+    'There are no activities to display here. Go ahead and make some changes.',
+  )
   if (title.value == 'Emails') {
-    description =
-      'No emails found in your inbox. New messages will appear here soon.'
+    description = __(
+      'No emails found in your inbox. New messages will appear here soon.',
+    )
   } else if (title.value == 'Comments') {
-    description = 'Be the first to add one.'
+    description = __('Be the first to add one.')
   } else if (title.value == 'Data') {
-    description = 'No data fields have been added yet.'
+    description = __('No data fields have been added yet.')
   } else if (title.value == 'Calls') {
-    description = 'No recent calls to display. Log a call or call someone now!'
+    description = __(
+      'No recent calls to display. Log a call or call someone now!',
+    )
   } else if (title.value == 'Notes') {
-    description = 'Nothing here for now. Add a note to keep track of things.'
+    description = __(
+      'Nothing here for now. Add a note to keep track of things.',
+    )
   } else if (title.value == 'Tasks') {
-    description =
-      'Nothing to do at the moment. Start organizing by adding one here.'
+    description = __(
+      'Nothing to do at the moment. Start organizing by adding one here.',
+    )
   } else if (title.value == 'Attachments') {
-    description =
-      'No files have been attached yet. Upload files to see them here.'
+    description = __(
+      'No files have been attached yet. Upload files to see them here.',
+    )
   } else if (title.value == 'WhatsApp') {
-    description = 'Start a conversation now!'
+    description = __('Start a conversation now!')
   }
   return description
 })
@@ -814,9 +820,6 @@ function timelineIcon(activity_type, is_lead) {
     case 'comment':
       icon = CommentIcon
       break
-    case 'event':
-      icon = CalendarIcon
-      break
     case 'incoming_call':
       icon = InboundCallIcon
       break
@@ -846,7 +849,7 @@ watch([reload, reload_email], ([reload_value, reload_email_value]) => {
 })
 
 function scroll(hash) {
-  if (['tasks', 'notes', 'events'].includes(route.hash?.slice(1))) return
+  if (['tasks', 'notes'].includes(route.hash?.slice(1))) return
   setTimeout(() => {
     let el
     if (!hash) {
