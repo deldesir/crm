@@ -94,7 +94,8 @@ import Email2Icon from '@/components/Icons/Email2Icon.vue'
 import { isContentEmpty } from '@/utils'
 import { usersStore } from '@/stores/users'
 import { useStorage } from '@vueuse/core'
-import { useOnboarding, useTelemetry } from 'frappe-ui/frappe'
+import { useOnboarding } from '@framework/ui/components/Onboarding'
+import { useTelemetry } from '@framework/ui/telemetry'
 import { call, createResource, toast } from 'frappe-ui'
 import { ref, watch, computed } from 'vue'
 
@@ -325,9 +326,23 @@ function toggleCommentBox() {
   showCommentBox.value = !showCommentBox.value
 }
 
+// Callable from outside (e.g. the command palette); setting the exposed ref
+// from a parent doesn't write through to .value, so open via a method.
+function openCommentBox() {
+  if (showEmailBox.value) showEmailBox.value = false
+  showCommentBox.value = true
+}
+
+function openEmailBox() {
+  if (showCommentBox.value) showCommentBox.value = false
+  showEmailBox.value = true
+}
+
 defineExpose({
   show: showEmailBox,
   showComment: showCommentBox,
   editor: newEmailEditor,
+  openCommentBox,
+  openEmailBox,
 })
 </script>
