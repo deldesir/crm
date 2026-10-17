@@ -29,6 +29,7 @@ def after_install(force=False):
 	add_default_lost_reasons()
 	add_default_quick_filters()
 	add_standard_dropdown_items()
+	add_user_email_subject_fields()
 	add_default_scripts()
 	create_default_manager_dashboard(force)
 	create_assignment_rule_custom_fields()
@@ -503,6 +504,7 @@ def add_default_quick_filters():
 		"CRM Organization": ["organization_name", "no_of_employees", "territory", "industry"],
 		"CRM Task": ["title", "priority", "assigned_to", "status", "due_date"],
 		"CRM Call Log": ["telephony_medium", "type", "status", "from", "to"],
+		"Data Import": ["name", "reference_doctype", "status"],
 	}
 
 	for quick_filter in quick_filters:
@@ -528,6 +530,34 @@ def add_standard_dropdown_items():
 		crm_settings.append("dropdown_items", item)
 
 	crm_settings.save()
+
+
+def add_user_email_subject_fields():
+	"""Each user's default subject for new emails from a lead or deal."""
+	meta = frappe.get_meta("User")
+
+	fields = [
+		{
+			"fieldname": "crm_lead_email_subject",
+			"fieldtype": "Data",
+			"label": "Lead Email Subject",
+			"insert_after": "email_signature",
+		},
+		{
+			"fieldname": "crm_deal_email_subject",
+			"fieldtype": "Data",
+			"label": "Deal Email Subject",
+			"insert_after": "crm_lead_email_subject",
+		},
+	]
+
+	fields = [field for field in fields if not meta.has_field(field["fieldname"])]
+	if not fields:
+		return
+
+	click.secho("* Installing Custom Fields in User")
+	create_custom_fields({"User": fields})
+	frappe.clear_cache(doctype="User")
 
 
 def add_default_scripts():
