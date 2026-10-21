@@ -75,10 +75,9 @@
             getRow(itemName, titleField).full_name
           "
         >
-          <Avatar
+          <UserAvatar
             class="flex items-center"
-            :image="getRow(itemName, titleField).user_image"
-            :label="getRow(itemName, titleField).full_name"
+            :user="getRow(itemName, titleField).name"
             size="sm"
           />
         </div>
@@ -149,11 +148,10 @@
           />
         </div>
         <div v-else-if="fieldName === 'lead_owner'">
-          <Avatar
+          <UserAvatar
             v-if="getRow(itemName, fieldName).full_name"
             class="flex items-center"
-            :image="getRow(itemName, fieldName).user_image"
-            :label="getRow(itemName, fieldName).full_name"
+            :user="getRow(itemName, fieldName).name"
             size="xs"
           />
         </div>
@@ -271,6 +269,7 @@
 </template>
 
 <script setup>
+import UserAvatar from '@/components/UserAvatar.vue'
 import ViewBreadcrumbs from '@/components/ViewBreadcrumbs.vue'
 import GroupSummaryTable from '@/components/GroupSummaryTable.vue'
 import MultipleAvatar from '@/components/MultipleAvatar.vue'
@@ -296,8 +295,8 @@ import { callEnabled } from '@/composables/telephony'
 import { useBroadcast } from '@/composables/useBroadcast'
 import { formatDate, timeAgo, website, formatTime } from '@/utils'
 import { timestampCell } from '@/composables/useTimelinePreferences'
-import { useOnboarding } from '@framework/ui/components/Onboarding'
 import { useTelemetry } from '@framework/ui/telemetry'
+import { useCrmOnboarding } from '@/composables/onboarding'
 import { Avatar, Tooltip, Dropdown } from 'frappe-ui'
 import { useRoute } from 'vue-router'
 import { ref, computed, reactive, h } from 'vue'
@@ -308,7 +307,7 @@ const { makeCall } = globalStore()
 const { getUser } = usersStore()
 const { getLeadStatus } = statusesStore()
 const { on } = useBroadcast()
-const { updateOnboardingStep } = useOnboarding('frappecrm')
+const { completeStep } = useCrmOnboarding()
 const { capture } = useTelemetry()
 const { showModal } = useDoctypeModal()
 
@@ -599,7 +598,7 @@ function showTask(name) {
 function after(d, isNew = false) {
   let a = d.doctype == 'FCRM Note' ? 'note' : 'task'
   if (isNew) {
-    updateOnboardingStep('create_first_' + a)
+    completeStep('create_first_' + a)
     capture(a + '_created')
   } else {
     capture(a + '_updated')
